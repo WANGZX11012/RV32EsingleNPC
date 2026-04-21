@@ -11,13 +11,16 @@ module EXU(
   input                 alu_en,
   input  [3:0]          alu_op,
   input                 alu_src2_imm,    //alu的第二个输入是imm还是rs2_data
+  input                 alu_src1_pc,     //当为AUIPC时，src1由PC提供
+  input  [31:0]         pc,
+  input  [2:0]          branch_type,
 
   output [31:0]         alu_result,
-  output [31:0]         j_target
+  output                branch_taken
 
 );
 
-wire [31:0] src1 = rs1_data;
+wire [31:0] src1 = alu_src1_pc ? pc : rs1_data;
 wire [31:0] src2 = alu_src2_imm ? imm : rs2_data;
 
 function [31:0] alu_func;
@@ -27,6 +30,7 @@ function [31:0] alu_func;
     begin
         case(op)
             `ALU_ADD:   alu_func = a + b;
+            // `ALU_ADD:   alu_func = a + b + (alu_src2_imm ? 32'd1 : 32'd0); // temporary bug injection
             `ALU_SUB:   alu_func = a - b;
             `ALU_AND:   alu_func = a & b;
             `ALU_OR:    alu_func = a | b;
@@ -43,9 +47,15 @@ endfunction
 
 
  assign alu_result = alu_en ? alu_func(alu_op, src1, src2) : 32'b0;
- assign j_target   = (rs1_data + imm) & 32'hffff_fffe;
+ assign branch_taken = (branch_type == `BR_BEQ)  ? (rs1_data == rs2_data) :
+                       (branch_type == `BR_BNE)  ? (rs1_data != rs2_data) : 
+                       (branch_type == `BR_BGE)  ? ($signed(rs1_data) >= $signed(rs2_data))  : 
+                       (branch_type == `BR_BGEU) ? ($unsigned(rs1_data) >= $unsigned(rs2_data))  :
+                       (branch_type == `BR_BLT)  ? ($signed(rs1_data) < $signed(rs2_data)) :
+                       (branch_type == `BR_BLTU) ? ($unsigned(rs1_data) < $unsigned(rs2_data)) : 1'b0;
 
 
 
 endmodule
+
 

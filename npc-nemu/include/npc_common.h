@@ -10,6 +10,8 @@
 #include <string.h>
 #include <npc_macro.h>
 
+#include <generated/autoconf.h>
+
 typedef uint32_t word_t;
 typedef int32_t  sword_t;
 typedef uint32_t vaddr_t;

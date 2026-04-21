@@ -15,6 +15,10 @@ CXX := g++
 NPC_ROOT      := ..
 ## 当前子工程根目录（就是 npc/npc-nemu/ 本身）
 NPC_NEMU_ROOT := .
+## 绝对路径版 npc-nemu 根目录
+NPC_NEMU_HOME  := $(abspath $(NPC_NEMU_ROOT))
+## 复用同级 nemu 工程中的 kconfig 工具链
+NEMU_HOME      := $(abspath $(NPC_ROOT)/../nemu)
 ## 本工程中间产物目录（放 .o）
 BUILD_DIR     := build
 ## 上层 Verilator 产物目录（放 Vtop__ALL.a 等）
@@ -32,7 +36,11 @@ CFLAGS   := -O2 -g -Wall -Wextra
 ## C++ 编译选项同上
 CXXFLAGS := -O2 -g -Wall -Wextra
 ## 链接选项：链接 readline（给 sdb 命令行编辑/历史能力）
-LDFLAGS  := -lreadline
+LDFLAGS  := -lreadline -ldl
+
+## 先尝试读取菜单配置生成的结果；如果还没跑 menuconfig，则保持默认值
+-include $(NPC_NEMU_HOME)/include/config/auto.conf
+-include $(NPC_NEMU_HOME)/include/config/auto.conf.cmd
 
 ## 统一头文件搜索路径（像给编译器一张“地图”）：
 ## 1) npc-nemu 自己的 include
@@ -50,6 +58,9 @@ INCLUDES := \
   -I$(VERILATOR_ROOT)/include \
   -I$(VERILATOR_ROOT)/include/vltstd
 
+## menuconfig 配套规则
+include $(NPC_NEMU_HOME)/scripts/config.mk
+
 ## ------------------------------------------------------------
 ## 源文件清单（逻辑分组，便于维护）
 ## ------------------------------------------------------------
@@ -58,6 +69,7 @@ INCLUDES := \
 NPC_NEMU_C_SRCS := \
   $(NPC_NEMU_ROOT)/src/npc-nemu-main.c \
   $(NPC_NEMU_ROOT)/src/cpu/cpu-exec.c \
+  $(NPC_NEMU_ROOT)/src/cpu/difftest/dut.c \
   $(NPC_NEMU_ROOT)/src/engine/interpreter/init.c \
   $(NPC_NEMU_ROOT)/src/isa/npc_isa.c \
   $(NPC_NEMU_ROOT)/src/monitor/monitor.c \
@@ -75,6 +87,7 @@ NPC_CPP_SRCS := \
 NPC_NEMU_C_OBJS := \
   $(BUILD_DIR)/npc-nemu-main.o \
   $(BUILD_DIR)/cpu-exec.o \
+  $(BUILD_DIR)/difftest.o \
   $(BUILD_DIR)/init.o \
   $(BUILD_DIR)/npc_isa.o \
   $(BUILD_DIR)/monitor.o \
@@ -88,6 +101,9 @@ NPC_CPP_OBJS := \
   $(BUILD_DIR)/dpic.o \
   $(BUILD_DIR)/sim_bridge.o
 
+REF_SO := $(BUILD_DIR)/ref.so
+REF_CFLAGS := -O2 -g -Wall -Wextra -fPIC
+
 ## 链接时需要的 Verilator 侧对象：
 ## - Vtop__ALL.a：你的 RTL 转出来的核心模型库
 ## - verilated*.cpp：Verilator 运行时支持（时间轮、trace、线程等）
@@ -99,6 +115,9 @@ VERILATOR_OBJS := \
 
 ## 默认目标：直接构建最终二进制
 all: $(BIN)
+ifeq ($(CONFIG_DIFFTEST),y)
+all: $(REF_SO)
+endif
 
 ## 如果 build/ 不存在就创建（mkdir -p 可重复执行）
 $(BUILD_DIR):
@@ -127,6 +146,9 @@ $(BUILD_DIR)/npc-nemu-main.o: $(NPC_NEMU_ROOT)/src/npc-nemu-main.c | $(BUILD_DIR
 $(BUILD_DIR)/cpu-exec.o: $(NPC_NEMU_ROOT)/src/cpu/cpu-exec.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
+$(BUILD_DIR)/difftest.o: $(NPC_NEMU_ROOT)/src/cpu/difftest/dut.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(BUILD_DIR)/init.o: $(NPC_NEMU_ROOT)/src/engine/interpreter/init.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
@@ -153,6 +175,9 @@ $(BUILD_DIR)/dpic.o: $(NPC_ROOT)/csrc/dpic.cpp | $(BUILD_DIR)
 
 $(BUILD_DIR)/sim_bridge.o: $(NPC_ROOT)/csrc/sim_bridge.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(REF_SO): $(NPC_NEMU_ROOT)/difftest/ref.c | $(BUILD_DIR)
+	$(CC) $(REF_CFLAGS) $(INCLUDES) -shared $< -o $@
 
 ## 最终链接：
 ## 把 npc-nemu 自己的对象 + bridge 对象 + Verilator 模型/运行时 一次性拼成可执行文件

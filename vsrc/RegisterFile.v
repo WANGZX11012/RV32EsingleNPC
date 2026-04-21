@@ -1,4 +1,7 @@
-module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (//二读一写寄存器堆 必须有clk
+module RegisterFile #(
+  parameter ADDR_WIDTH = 1,
+  parameter DATA_WIDTH = 1
+) (//二读一写寄存器堆 必须有clk
   input clk,
   input [DATA_WIDTH-1:0] w_data,
   input [ADDR_WIDTH-1:0] w_addr,
@@ -16,9 +19,18 @@ module RegisterFile #(ADDR_WIDTH = 1, DATA_WIDTH = 1) (//二读一写寄存器�
 );
   reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];  //2**代表幂运算 也就是rf 31
 
+  integer i;
+
+  initial begin
+    for (i = 0; i < (1 << ADDR_WIDTH); i = i + 1) begin
+      rf[i] = {DATA_WIDTH{1'b0}};
+    end
+  end
+
 
   always @(posedge clk) 
   begin
+    rf[0] <= {DATA_WIDTH{1'b0}};
     if (wen && w_addr != 0) begin
       rf[w_addr] <= w_data;
     end

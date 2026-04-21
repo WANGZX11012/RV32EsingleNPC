@@ -16,6 +16,8 @@ void init_pmem(size_t bytes);
 
 // Read instruction word from simulated program memory
 uint32_t pc_read(uint32_t addr);
+// Copy current pmem contents out for difftest REF initialization
+void pmem_copy_out(void *dst, size_t bytes);
 
 // DPI-C exposed ebreak handler (implemented in C++)
 void npc_ebreak(int code);

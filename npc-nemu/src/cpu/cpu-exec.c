@@ -1,4 +1,5 @@
 #include <cpu/npc_cpu.h>
+#include <cpu/difftest.h>
 #include "../../../csrc/sim_bridge.h"
 #include <stdio.h>
 #include <npc_debug.h>
@@ -20,6 +21,7 @@ void npc_set_state(int state, vaddr_t pc, int halt_ret)
 static void npc_sync_cpu_state(void) 
 {
   npc_cpu.pc = npc_sim_get_pc();//同步到nemu侧的cpu状态
+  npc_sim_get_gprs(npc_cpu.gpr);
 }
 
 void npc_exec_once(void) 
@@ -36,13 +38,21 @@ void npc_exec_once(void)
 
   
 
-  npc_sim_init();       //reset
   npc_state.state = NPC_RUNNING;
 
   uint32_t this_pc = npc_sim_get_pc();
+  uint32_t this_inst = pc_read(this_pc);
   npc_sim_step_once();   //时钟脉冲一次
   npc_sync_cpu_state();  //更新nemu侧
   g_nr_guest_inst++;
+
+#ifdef CONFIG_DIFFTEST
+  if (!npc_sim_is_aborted()) {
+    if (!difftest_step(this_pc, npc_cpu.pc, this_inst)) {
+      return;
+    }
+  }
+#endif
 
   if (npc_sim_is_aborted())
   {
@@ -50,12 +60,12 @@ void npc_exec_once(void)
     return;
   }
 
-   npc_Log(ANSI_FMT("PC:0x%08x inst:0x%08x", ANSI_FG_GREEN), this_pc, npc_sim_get_inst());
+     npc_Log(ANSI_FMT("PC:0x%08x inst:0x%08x", ANSI_FG_GREEN), this_pc, this_inst);
 
   if (g_print_step) 
   {
     printf("pc=0x%08x inst=0x%08x next_pc=0x%08x\n",
-        this_pc, npc_sim_get_inst(), npc_cpu.pc);
+       this_pc, this_inst, npc_cpu.pc);
   }
 
   if (npc_sim_is_halted()) 
@@ -71,12 +81,20 @@ void npc_exec_once(void)
 
 void npc_cpu_exec(uint64_t n) 
 {
+  if (npc_state.state == NPC_ABORT || /*npc_state.state == NPC_END ||*/ npc_state.state == NPC_QUIT)
+  {
+    return;//直接退出
+  }
 
-  if (npc_state.state == NPC_END || npc_state.state == NPC_ABORT || npc_state.state == NPC_QUIT) 
+  if (npc_state.state == NPC_END) 
   {
     printf(ANSI_FMT("Press Q to quit\n", ANSI_FG_RED));
     return;
   }
+
+
+  
+
 
   if (n == (uint64_t)-1) 
   {

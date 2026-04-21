@@ -1,6 +1,7 @@
 #include "sim_bridge.h"
 
 #include "Vtop.h"
+#include "Vtop___024root.h"
 #include "dpic.h"
 #include "verilated.h"
 
@@ -14,7 +15,16 @@ static int sim_halt_ret = 0;
 
 static bool sim_abort = false;
 
+// 记录最近一次取到的 PC/指令，用于非法指令时输出现场信息
+static uint32_t last_pc = 0;
 static uint32_t last_inst = 0;
+
+// 由 main.cpp 在每拍取指后调用，更新当前拍的 PC/inst
+extern "C" void npc_sim_set_trace(uint32_t pc, uint32_t inst)
+{
+  last_pc = pc;
+  last_inst = inst;
+}
 
 extern "C" void npc_sim_mark_halt(int code) 
 {
@@ -24,8 +34,8 @@ extern "C" void npc_sim_mark_halt(int code)
 
 extern "C" void npc_sim_mark_abort(void)
 {
-  uint32_t abort_pc = (top != nullptr) ? top->pc : 0;
-  std::fprintf(stderr, "NPC abort at 0x%08x INST:0x%08x\n", abort_pc, last_inst);
+  // 发生非法指令时，打印最近一次记录到的 PC/inst
+  std::fprintf(stderr, "NPC abort at 0x%08x INST:0x%08x\n", last_pc, last_inst);
   sim_abort = true;
 }
 
@@ -78,6 +88,22 @@ extern "C" uint32_t npc_sim_get_pc(void)
 extern "C" uint32_t npc_sim_get_inst(void) 
 {
   return last_inst;
+}
+
+extern "C" void npc_sim_get_gprs(uint32_t *gpr)
+{
+  if (top == nullptr || gpr == nullptr) return;
+
+  gpr[0] = 0;
+  for (int i = 1; i < 32; i++) {
+    gpr[i] = top->rootp->top__DOT__u_core__DOT__u_regfile__DOT__rf[i];
+  }
+}
+
+// Debug: read-before/after helper (not used elsewhere)
+extern "C" void npc_sim_dbg_rf2(void) {
+  if (top == nullptr) return;
+  std::fprintf(stderr, "SIMBRIDGE_READ: rf[2]=0x%08x\n", top->rootp->top__DOT__u_core__DOT__u_regfile__DOT__rf[2]);
 }
 
 extern "C" bool npc_sim_is_halted(void) 

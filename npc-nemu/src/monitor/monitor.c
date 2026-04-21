@@ -1,11 +1,12 @@
 #include <npc_common.h>
 #include <npc_utils.h>
+#include <sim_bridge.h>
 
 
 void npc_init_rand();
 void npc_init_log(const char *log_file);
 // void init_mem();
-// void init_difftest(char *ref_so_file, long img_size, int port);
+void init_difftest(char *ref_so_file, char *img_file, long img_size, int port);
 // void init_device();
 void npc_init_sdb();
 void init_disasm();
@@ -108,6 +109,9 @@ void npc_init_monitor(int argc, char *argv[])
   /* Load the image to memory. This will overwrite the built-in image. */
   load_img();
 
+  /* Initialize DUT bridge before difftest takes the reset snapshot. */
+  npc_sim_init();
+
   /* Initialize ftrace if an ELF path was provided via -e */
 //   if (elf_file) 
 //   {
@@ -115,7 +119,7 @@ void npc_init_monitor(int argc, char *argv[])
 //   }
 
   /* Initialize differential testing. */
-  // init_difftest(diff_so_file, img_size, difftest_port);
+  IFDEF(CONFIG_DIFFTEST, init_difftest(diff_so_file, img_file, 0, difftest_port));
 
   /* Initialize the simple debugger. */
   npc_init_sdb();

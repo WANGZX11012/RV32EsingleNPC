@@ -25,7 +25,7 @@ static const uint32_t default_pc_inst[] =
   0x00404283, // PC=0x0000001c: lw   x5,4(x0)   ; load from mem[4] -> x5 (low byte=5)
   0x024003e7, // PC=0x00000020: jalr x7,x0,0x24 ; x7 = pc+4, jump to 0x24
 
-  0x12345678,
+  // 0x12345678, //invalid test
 
   0x00100073,   //EBREAK
   0x00c00067, // PC=0x00000024: jalr x0,x0,0xc  ; jump to 0x0c (form loop)  EBREAK
@@ -140,6 +140,7 @@ extern "C" bool load_hex_program(const char *path)
 
   fclose(fp);
   printf("load_hex: allocated %zu words, loaded %zu instructions from %s\n", dynamic_pc_inst_size, loaded, path);
+  printf("[DEBUG] First instruction: dynamic_pc_inst[0]=0x%08x\n", dynamic_pc_inst_size > 0 ? dynamic_pc_inst[0] : 0);
   return true;
 }
 
@@ -174,6 +175,21 @@ extern "C" uint32_t pc_read(uint32_t addr)
 
   // 4) 两个区域都越界则返回 0（等价于取到空指令/非法指令，由上层处理）
   return 0;
+}
+
+extern "C" void pmem_copy_out(void *dst, size_t bytes)
+{
+  if (dst == nullptr || bytes == 0) return;
+
+  size_t words = bytes / sizeof(uint32_t);
+  if (bytes % sizeof(uint32_t) != 0) {
+    words += 1;
+  }
+  if (words > pmem_words_size) {
+    words = pmem_words_size;
+  }
+
+  std::memcpy(dst, pmem_words, words * sizeof(uint32_t));
 }
 
 extern "C" void npc_ebreak(int code) //连接sim bridge
