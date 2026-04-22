@@ -29,6 +29,7 @@ module core(
   wire       mem_re;
   wire       mem_we;
   wire [1:0] mem_width;
+  wire       mem_signed;
 
   // 这些是 IDU 输出但当前顶层未使用的控制信号
   wire       idu_rs1_en_unused;
@@ -75,6 +76,7 @@ module core(
     .mem_re        (mem_re),
     .mem_we        (mem_we),
     .mem_width     (mem_width),
+    .mem_signed    (mem_signed),
     .branch_type   (branch_type),
     .invalid       (idu_invalid)
   );
@@ -143,8 +145,9 @@ module core(
     .mem_re    (mem_re),
     .mem_we    (mem_we),
     .mem_width (mem_width),
+    .mem_signed(mem_signed),
     .wdata     (r_data2),
-    .addr      (alu_result),
+    .addr      (alu_result),//就是传alu的结果
     .rdata     (rdata),
     .pc        (pc)
   );

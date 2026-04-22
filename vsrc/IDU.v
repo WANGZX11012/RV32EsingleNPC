@@ -22,7 +22,8 @@ module IDU (
 
   output                    mem_re,
   output                    mem_we,
-  output [1:0]              mem_width, //字节有1,2,4的选择                  
+  output [1:0]              mem_width, //字节有1,2,4的选择  
+  output                    mem_signed, //符号加载 无符号加载控制                
 
   output [2:0]              wb_sel,
   output [1:0]              npc_sel,
@@ -60,12 +61,17 @@ localparam IMM_J = 3'b100;
   reg is_lui;
   reg is_lbu;
   reg is_lw;
+  reg is_lb;
+  reg is_lh;
+  reg is_lhu;
+
   //ebreak
   reg is_ebreak;
 
   //store相关
   reg is_sb;
   reg is_sw;
+  reg is_sh;
 
   //算术相关
   reg is_auipc;//！！！
@@ -77,6 +83,19 @@ localparam IMM_J = 3'b100;
   reg is_sub;
   reg is_slti;
   reg is_sltiu;
+  reg is_and; // R-type and
+  reg is_andi;//与立即数
+
+  reg is_sra; //移动有关
+  reg is_srai;//移动有关
+  reg is_srl; //逻辑右移动
+  reg is_sll; //逻辑左移
+  reg is_slli; // slli (I-type)
+  reg is_srli; //把rs1逻辑右移
+
+  
+  reg is_sltu;
+  reg is_slt;
 
   always @(*) 
   begin
@@ -95,14 +114,31 @@ localparam IMM_J = 3'b100;
     is_addi   = 1'b0;
     is_sub    = 1'b0;
     is_or     = 1'b0;
+    is_and    = 1'b0;
+    is_andi   = 1'b0;
+
+    is_sh     = 1'b0;
+    is_sll    = 1'b0;
+    is_slli   = 1'b0;
     is_slti   = 1'b0;
     is_sltiu  = 1'b0;
+    is_sra    = 1'b0;
+    is_srl    = 1'b0;
+    is_srai   = 1'b0;
+    is_sltu   = 1'b0;
+    is_slt    = 1'b0;
+    is_srli   = 1'b0;
+
     is_bne    = 1'b0;
     is_beq    = 1'b0;
     is_bge    = 1'b0;
     is_bgeu   = 1'b0;
     is_blt    = 1'b0;
     is_bltu   = 1'b0;
+    is_lh     = 1'b0;
+    is_lhu    = 1'b0;
+    is_lb     = 1'b0;
+
 
 
     case (opcode)
@@ -133,14 +169,18 @@ localparam IMM_J = 3'b100;
         case (funct3)
           3'b000: begin is_sb = 1'b1; end
           3'b010: begin is_sw = 1'b1; end
+          3'b001: begin is_sh = 1'b1; end
         endcase
       end
 
       7'b0000011: 
       begin // load
         case (funct3)
+          3'b000: begin is_lb  = 1'b1; end
           3'b010: begin is_lw  = 1'b1; end
           3'b100: begin is_lbu = 1'b1; end
+          3'b001: begin is_lh  = 1'b1; end
+          3'b101: begin is_lhu = 1'b1; end
         endcase
       end
 
@@ -149,11 +189,20 @@ localparam IMM_J = 3'b100;
         case (funct3)
           3'b000: 
           begin
-            if (funct7 == 7'b000_0000) begin is_add = 1'b1; end // add
-            if (funct7 == 7'b010_0000) begin is_sub = 1'b1; end // sub
+            if (funct7 == 7'b0000000) begin is_add = 1'b1; end // add
+            if (funct7 == 7'b0100000) begin is_sub = 1'b1; end // sub
           end
-          3'b100: if (funct7 == 7'b000_0000) begin is_xor = 1'b1; end // xor
-          3'b110: if (funct7 == 7'b000_0000) begin is_or = 1'b1; end // or
+          3'b011: if (funct7 == 7'b0000000) begin is_sltu = 1'b1; end // sltu
+          3'b010: if (funct7 == 7'b0000000) begin is_slt = 1'b1; end // slt
+          3'b100: if (funct7 == 7'b0000000) begin is_xor = 1'b1; end // xor
+          3'b110: if (funct7 == 7'b0000000) begin is_or = 1'b1; end // or
+          3'b111: if (funct7 == 7'b0000000) begin is_and = 1'b1; end // and
+          3'b101: begin 
+                    if (funct7 == 7'b0100000) is_sra = 1'b1; // sra
+                    if (funct7 == 7'b0000000)  is_srl = 1'b1; // srl
+                  end
+
+          3'b001: if (funct7 == 7'b0000000) begin is_sll = 1'b1; end //sll
         endcase
       end
 
@@ -161,9 +210,15 @@ localparam IMM_J = 3'b100;
       begin // I-type arithmetic
         case (funct3)
           3'b000: begin is_addi = 1'b1; end // addi
+          3'b001: begin if(funct7 == 7'b000_0000) is_slli = 1'b1; end // slli
           3'b010: begin is_slti = 1'b1; end // slti
           3'b011: begin is_sltiu = 1'b1; end // sltiu
           3'b100: begin is_xori = 1'b1; end // xori
+          3'b101: begin 
+                    if (funct7 == 7'b0100000) is_srai = 1'b1;// srai
+                    if (funct7 == 7'b0000000)  is_srli = 1'b1; //srli
+                  end 
+          3'b111: begin is_andi = 1'b1; end //andi
         endcase
       end
 
@@ -203,13 +258,16 @@ localparam IMM_J = 3'b100;
   // rs2: add/sw/sb/xor/sub 需要
   assign rs1_en = is_addi | is_jalr | is_add | is_lw | is_lbu | is_sw | is_sb | is_xor | 
                   is_xori | is_sub | is_or | is_slti | is_sltiu | is_bne | is_beq | is_bge | 
-                  is_bgeu | is_blt  | is_bltu;
+                  is_bgeu | is_blt  | is_bltu | is_lh | is_lhu | is_lb | is_sltu | is_slt | 
+                  is_sh | is_srai | is_sra | is_sll | is_srli | is_srl | is_andi | is_and | is_slli;
 
   assign rs2_en = is_add | is_sw | is_sb | is_xor | is_sub | is_or | is_bne | is_beq | 
-                  is_bge | is_bgeu |  is_blt | is_bltu; 
+                  is_bge | is_bgeu |  is_blt | is_bltu | is_sltu | is_slt | is_sh | is_sra | is_sll | is_srl | is_and; 
 
   assign rd_en  = is_addi | is_jal | is_jalr | is_add | is_lui | is_lbu | is_lw | is_auipc | 
-                  is_xor | is_xori | is_sub | is_or | is_slti | is_sltiu;//寄存器写使能逻辑
+                  is_xor | is_xori | is_sub | is_or | is_slti | is_sltiu | is_lh | is_lhu | is_lb | 
+                  is_sltu | is_slt | is_srai | is_sra | is_sll | is_srli | is_srl | is_andi | is_and | is_slli ;//寄存器写使能逻辑
+                  
   
   /*alu related*/
   // 用 case 结构解码 ALU 操作，按 opcode 分组，R-type/I-type 细化
@@ -266,14 +324,14 @@ localparam IMM_J = 3'b100;
       begin // load address = rs1 + imm
         alu_en = 1'b1;
         alu_src2_imm = 1'b1;
-        alu_op = `ALU_ADD; // lw / lbu 地址计算
+        alu_op = `ALU_ADD; // lw / lbu / load相关都是一样的地址计算
       end
-
+ 
       7'b0100011:
       begin // store address = rs1 + imm
         alu_en = 1'b1;
         alu_src2_imm = 1'b1;
-        alu_op = `ALU_ADD; // sw / sb 地址计算
+        alu_op = `ALU_ADD; // sw / sb  / sh 地址计算
       end
 
 
@@ -324,15 +382,17 @@ localparam IMM_J = 3'b100;
   // 2'b10 -> jal target  (pc + imm)
   assign npc_sel = is_jalr ? `NPC_JALR :
                    (is_bne | is_beq | is_bge | is_bgeu | is_blt | is_bltu)  ? `NPC_BR   :
-                   is_jal  ? `NPC_JAL  :
-                             `NPC_PC4;
+                   is_jal  ? `NPC_JAL  : `NPC_PC4;
   // 访存相关
-  assign mem_re = is_lbu | is_lw;
-  assign mem_we = is_sb | is_sw;
+  assign mem_re = is_lb | is_lbu | is_lw | is_lh | is_lhu;
+  assign mem_we = is_sb | is_sw | is_sh;
   // 访存宽度选择：sb/lbu=字节，sw/lw=字
   // 其余默认 half（预留给后续 lh/lhu/sh）
-  assign mem_width = (is_sb | is_lbu) ? `MEM_BYTE :
-                     ((is_sw | is_lw) ? `MEM_WORD : `MEM_HALF);
+  assign mem_width =  (is_sb | is_lbu | is_lb) ? `MEM_BYTE :
+                      (is_sw | is_lw) ? `MEM_WORD : 
+                      (is_lh | is_lhu | is_sh) ? `MEM_HALF : `MEM_WORD;
+
+  assign mem_signed = is_lh | is_lb;
   // wb_sel:
   // 000 -> ALU结果（addi）
   // 001 -> pc + 4   （jal/jalr）
@@ -343,9 +403,11 @@ localparam IMM_J = 3'b100;
   // 011 -> imm (lui)
   // 写回来源选择：
   // addi/add -> ALU，jal/jalr -> pc+4，lw/lbu -> MEM，lui -> IMM
-  assign wb_sel = (is_addi | is_add | is_auipc | is_xor | is_xori | is_sub | is_or | is_slti | is_sltiu) ? `WB_ALU :
+  assign wb_sel = (is_addi | is_add | is_auipc | is_xor | is_xori | is_sub | is_or | is_slti | is_sltiu | is_sltu |
+                   is_slt | is_sra | is_srai | is_sll | is_srli | is_srl | is_andi | is_and | is_slli ) ? `WB_ALU :
+                  
                   (is_jal | is_jalr) ? `WB_PC4 :
-                  (is_lw | is_lbu)   ? `WB_MEM :
+                  (is_lw | is_lbu | is_lh | is_lhu | is_lb) ? `WB_MEM :
                   (is_lui ? `WB_IMM : `WB_ALU);
 
   
@@ -354,11 +416,18 @@ localparam IMM_J = 3'b100;
                        is_bgeu ? `BR_BGEU : is_blt  ? `BR_BLT :
                        is_bltu ? `BR_BLTU : `BR_NONE;
 
+  // RV32 shift-immediate 非法编码：inst[25] (= shamt[5]) 必须为 0
+  wire illegal_shift_imm = (opcode == 7'b0010011) &&
+                           ((funct3 == 3'b001) || (funct3 == 3'b101)) &&
+                           inst[25];
+
   // invalid: 仅当未匹配到任何已实现指令时为 1
-  assign invalid = ~(is_addi | is_jal | is_jalr | is_add | is_lui | is_lbu | is_lw |
+  assign invalid = illegal_shift_imm |
+                   ~(is_addi | is_jal | is_jalr | is_add | is_lui | is_lbu | is_lw |
                      is_auipc | is_xor | is_xori | is_sub | is_or | is_slti |
-                     is_sltiu | is_sw | is_sb | is_ebreak | is_bne | is_bge | 
-                     is_bgeu | is_blt | is_bltu | is_beq);
+                     is_sltiu | is_sw | is_sb | is_sh | is_ebreak | is_bne | is_bge | 
+                     is_bgeu | is_blt | is_bltu | is_beq | is_lh | is_lhu | is_lb | 
+                     is_sltu | is_slt | is_srai | is_sra | is_sll | is_srli | is_srl | is_andi | is_and | is_slli);
 
 
   /*opcode 判断imm 类型*/

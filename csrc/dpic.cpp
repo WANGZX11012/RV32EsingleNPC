@@ -182,7 +182,8 @@ extern "C" void pmem_copy_out(void *dst, size_t bytes)
   if (dst == nullptr || bytes == 0) return;
 
   size_t words = bytes / sizeof(uint32_t);
-  if (bytes % sizeof(uint32_t) != 0) {
+  if (bytes % sizeof(uint32_t) != 0) 
+  {
     words += 1;
   }
   if (words > pmem_words_size) {
@@ -203,14 +204,14 @@ extern "C" void npc_invalid_inst()
   npc_sim_mark_abort();
 }
 
-extern "C" void init_pmem(size_t bytes) 
+extern "C" void init_pmem(size_t bytes) //pmem初始化
 {
   size_t words = bytes; 
   if (words == 0) words = 1;
   if (words > MAX_WORDS) words = MAX_WORDS;
 
   pmem_words_size = words;
-  for (size_t i = 0; i < pmem_words_size; i++) 
+  for (size_t i = 0; i < pmem_words_size; i++) //初始化为0
   {
     pmem_words[i] = 0;
   }
@@ -220,18 +221,14 @@ extern "C" uint32_t pmem_read_u32(uint32_t raddr)
 {
   uint32_t index;
   uint32_t orig = raddr;
-  if (raddr < PC_BASE) {
+  if (raddr < PC_BASE) 
+  {
     raddr |= PC_BASE; // temporary map low addresses into pmem high region for debug
     printf("pmem_read_u32 mapped 0x%08x -> 0x%08x\n", orig, raddr);
   }
-  if (raddr >= PC_BASE) 
-  {
-    index = (raddr - PC_BASE) >> 2;
-  } 
-  else 
-  {
-    index = raddr >> 2;
-  }
+
+  index = (raddr >= PC_BASE) ? ((raddr - PC_BASE) >> 2) : (raddr >> 2);
+
   if (index >= pmem_words_size)
   {
     printf("pmem_read_u32 out of range : 0x%08x\n", raddr);
@@ -245,21 +242,18 @@ extern "C" uint8_t pmem_read_u8(uint32_t raddr)
   uint32_t index;
   uint32_t byte_off;
   uint32_t orig = raddr;
-  if (raddr < PC_BASE) {
-    raddr |= PC_BASE; // temporary mapping
+  if (raddr < PC_BASE) 
+  {
+    raddr |= PC_BASE; // temporary mapping 一定大于PC BASE了
     printf("pmem_read_u8 mapped 0x%08x -> 0x%08x\n", orig, raddr);
   }
-  if (raddr >= PC_BASE) 
-  {
-    uint32_t off = raddr - PC_BASE;
-    index = off >> 2;
-    byte_off = off & 3u;
-  } 
-  else 
-  {
-    index = raddr >> 2;
-    byte_off = raddr & 3u;
-  }
+
+  // 统一计算相对于 pmem 的字节偏移，再派生出 word 下标和字节偏移。
+  // 这样不依赖隐含不变式，代码更清晰且避免未初始化风险。
+  uint32_t off = (raddr >= PC_BASE) ? (raddr - PC_BASE) : raddr;
+  index = off >> 2;
+  byte_off = off & 3u;
+
   if (index >= pmem_words_size)
   {
     printf("pmem read out of range : 0x%08x\n", raddr);
@@ -269,22 +263,59 @@ extern "C" uint8_t pmem_read_u8(uint32_t raddr)
   return (word >> (byte_off * 8)) & 0xff;
 }
 
+extern "C" uint16_t pmem_read_u16(uint32_t raddr) //半字的读
+{
+  uint32_t orig = raddr;
+  if (raddr < PC_BASE) 
+  {
+    raddr |= PC_BASE; // temporary mapping 一定大于PC_BASE
+    printf("pmem_read_u16 mapped 0x%08x -> 0x%08x\n", orig, raddr);
+  }
+
+  uint32_t off = (raddr >= PC_BASE) ? (raddr - PC_BASE) : raddr;
+  uint32_t index = off >> 2;
+  uint32_t byte_off = off & 3u;
+
+  if (index >= pmem_words_size)
+  {
+    printf("pmem read out of range : 0x%08x\n", raddr);
+    return 0;
+  }
+
+  uint16_t val;
+
+  if (byte_off <= 2)
+  {
+    val = (uint16_t)((pmem_words[index] >> (byte_off * 8)) & 0xffff);
+    return val;
+  }
+  else /* byte_off == 3: halfword crosses to next word */
+  {
+    if (index + 1 >= pmem_words_size) {
+      printf("pmem read out of range (cross-word) : 0x%08x\n", raddr);
+      return 0;
+    }
+    uint32_t low = (pmem_words[index] >> 24) & 0xffu;
+    uint32_t high = pmem_words[index + 1] & 0xffu;
+    val = (uint16_t)((high << 8) | low);
+    return val;
+  }
+}
+
+
+
+
+
 extern "C" void pmem_write_u32(uint32_t waddr, uint32_t wdata) 
 {
   uint32_t index;
   uint32_t orig = waddr;
-  if (waddr < PC_BASE) {
+  if (waddr < PC_BASE) 
+  {
     waddr |= PC_BASE; // temporary map low addresses into pmem high region for debug
     printf("pmem_write_u32 mapped 0x%08x -> 0x%08x\n", orig, waddr);
   }
-  if (waddr >= PC_BASE) 
-  {
-    index = (waddr - PC_BASE) >> 2;
-  } 
-  else 
-  {
-    index = waddr >> 2;
-  }
+  index = (waddr >= PC_BASE) ? ((waddr - PC_BASE) >> 2) : (waddr >> 2);
   if (index >= pmem_words_size)
   {
     printf("mem write out of range : 0x%08x\n", waddr);
@@ -300,21 +331,15 @@ extern "C" void pmem_write_u8(uint32_t addr, uint8_t data)
   uint32_t index;
   uint32_t byte_off;
   uint32_t orig = addr;
-  if (addr < PC_BASE) {
+  if (addr < PC_BASE) 
+  {
     addr |= PC_BASE; // temporary mapping
     printf("pmem_write_u8 mapped 0x%08x -> 0x%08x\n", orig, addr);
   }
-  if (addr >= PC_BASE) 
-  {
-    uint32_t off = addr - PC_BASE;
-    index = off >> 2;
-    byte_off = off & 3u;
-  } 
-  else 
-  {
-    index = addr >> 2;
-    byte_off = addr & 3u;
-  }
+
+  uint32_t off = (addr >= PC_BASE) ? (addr - PC_BASE) : addr;
+  index = off >> 2;
+  byte_off = off & 3u;
   if (index >= pmem_words_size)
   {
     fprintf(stderr, "pmem_write_u8 out of range addr=0x%08x\n", addr);
@@ -327,5 +352,55 @@ extern "C" void pmem_write_u8(uint32_t addr, uint8_t data)
   fflush(stdout);
 }
 
+extern "C" void pmem_write_u16(uint32_t addr, uint16_t data) 
+{
+  uint32_t index;
+  uint32_t orig = addr;
+  if (addr < PC_BASE) 
+  {
+    addr |= PC_BASE; // temporary mapping
+    printf("pmem_write_u16 mapped 0x%08x -> 0x%08x\n", orig, addr);
+  }
 
+  uint32_t off = (addr >= PC_BASE) ? (addr - PC_BASE) : addr;
+  index = off >> 2;
+  uint32_t byte_off = off & 3u;
 
+  if (index >= pmem_words_size) 
+  {
+    fprintf(stderr, "pmem_write_u16 out of range addr=0x%08x\n", addr);
+    return;
+  }
+
+  if (byte_off <= 2) 
+  {
+    uint32_t word = pmem_words[index];
+    uint32_t mask = ~(0xffffu << (byte_off * 8));
+    pmem_words[index] = (word & mask) | (((uint32_t)data) << (byte_off * 8));
+    printf("pmem_write_u16 addr=0x%08x data=0x%04x\n", addr, data);
+    fflush(stdout);
+    return;
+  } 
+  else 
+  {
+    /* byte_off == 3: split across two words */
+    if (index + 1 >= pmem_words_size) {
+      fprintf(stderr, "pmem_write_u16 out of range (cross-word) addr=0x%08x\n", addr);
+      return;
+    }
+    uint32_t low = (uint32_t)(data & 0xffu);
+    uint32_t high = (uint32_t)((data >> 8) & 0xffu);
+
+    uint32_t word = pmem_words[index];
+    word = (word & ~(0xffu << 24)) | (low << 24);
+    pmem_words[index] = word;
+
+    uint32_t next = pmem_words[index + 1];
+    next = (next & ~0xffu) | high;
+    pmem_words[index + 1] = next;
+
+    printf("pmem_write_u16 addr=0x%08x data=0x%04x (cross-word)\n", addr, data);
+    fflush(stdout);
+    return;
+  }
+}

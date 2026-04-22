@@ -39,7 +39,7 @@ function [31:0] alu_func;
             `ALU_SLTU:  alu_func = (a < b) ? 32'd1 : 32'd0;
             `ALU_SLL:   alu_func = a << b[4:0];
             `ALU_SRL:   alu_func = a >> b[4:0];
-            `ALU_SRA:   alu_func = $signed(a) >>> b[4:0];
+            `ALU_SRA:   alu_func = $signed(a) >>> b[4:0]; //>>>是算术移动
             default:    alu_func = 32'b0;
         endcase
     end

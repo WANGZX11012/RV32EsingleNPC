@@ -34,6 +34,18 @@ void Vtop___024unit____Vdpiimwrap_pmem_write_u32_TOP____024unit(IData/*31:0*/ wa
     pmem_write_u32(waddr__Vcvt, wdata__Vcvt);
 }
 
+extern "C" int pmem_read_u32(int raddr);
+
+void Vtop___024unit____Vdpiimwrap_pmem_read_u32_TOP____024unit(IData/*31:0*/ raddr, IData/*31:0*/ &pmem_read_u32__Vfuncrtn) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+        Vtop___024unit____Vdpiimwrap_pmem_read_u32_TOP____024unit\n"); );
+    // Body
+    int raddr__Vcvt;
+    raddr__Vcvt = raddr;
+    int pmem_read_u32__Vfuncrtn__Vcvt;
+    pmem_read_u32__Vfuncrtn__Vcvt = pmem_read_u32(raddr__Vcvt);
+    pmem_read_u32__Vfuncrtn = (pmem_read_u32__Vfuncrtn__Vcvt);
+}
+
 extern "C" void pmem_write_u8(int waddr, char wdata);
 
 void Vtop___024unit____Vdpiimwrap_pmem_write_u8_TOP____024unit(IData/*31:0*/ waddr, CData/*7:0*/ wdata) {
@@ -58,14 +70,26 @@ void Vtop___024unit____Vdpiimwrap_pmem_read_u8_TOP____024unit(IData/*31:0*/ radd
     pmem_read_u8__Vfuncrtn = (0x000000ffU & (pmem_read_u8__Vfuncrtn__Vcvt));
 }
 
-extern "C" int pmem_read_u32(int raddr);
+extern "C" void pmem_write_u16(int waddr, int wdata);
 
-void Vtop___024unit____Vdpiimwrap_pmem_read_u32_TOP____024unit(IData/*31:0*/ raddr, IData/*31:0*/ &pmem_read_u32__Vfuncrtn) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+        Vtop___024unit____Vdpiimwrap_pmem_read_u32_TOP____024unit\n"); );
+void Vtop___024unit____Vdpiimwrap_pmem_write_u16_TOP____024unit(IData/*31:0*/ waddr, IData/*31:0*/ wdata) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+        Vtop___024unit____Vdpiimwrap_pmem_write_u16_TOP____024unit\n"); );
+    // Body
+    int waddr__Vcvt;
+    waddr__Vcvt = waddr;
+    int wdata__Vcvt;
+    wdata__Vcvt = wdata;
+    pmem_write_u16(waddr__Vcvt, wdata__Vcvt);
+}
+
+extern "C" int pmem_read_u16(int raddr);
+
+void Vtop___024unit____Vdpiimwrap_pmem_read_u16_TOP____024unit(IData/*31:0*/ raddr, IData/*31:0*/ &pmem_read_u16__Vfuncrtn) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+        Vtop___024unit____Vdpiimwrap_pmem_read_u16_TOP____024unit\n"); );
     // Body
     int raddr__Vcvt;
     raddr__Vcvt = raddr;
-    int pmem_read_u32__Vfuncrtn__Vcvt;
-    pmem_read_u32__Vfuncrtn__Vcvt = pmem_read_u32(raddr__Vcvt);
-    pmem_read_u32__Vfuncrtn = (pmem_read_u32__Vfuncrtn__Vcvt);
+    int pmem_read_u16__Vfuncrtn__Vcvt;
+    pmem_read_u16__Vfuncrtn__Vcvt = pmem_read_u16(raddr__Vcvt);
+    pmem_read_u16__Vfuncrtn = (pmem_read_u16__Vfuncrtn__Vcvt);
 }
