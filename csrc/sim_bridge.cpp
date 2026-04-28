@@ -73,9 +73,18 @@ extern "C" void npc_sim_step_once(void) //npc 电路时钟脉冲一次
   last_inst = pc_read(pc);
   top->inst = last_inst;
 
+  // 打印每周期一次的 PC 和取到的指令（避免在 pc_read 中重复打印）
+  // printf("pc_trace: pc=0x%08x inst=0x%08x\n", pc, last_inst);
+
   top->clk = 1;
   top->eval();
 
+  // Clear the instruction before the falling-edge eval. Architectural state
+  // has already been committed on the rising edge; keeping the same load/store
+  // on the combinational path during the low phase can trigger a second
+  // non-architectural DPI memory access in the same step.
+  //下降沿清零
+  top->inst = 0;
   top->clk = 0;
   top->eval();
 }
@@ -98,12 +107,6 @@ extern "C" void npc_sim_get_gprs(uint32_t *gpr)
   for (int i = 1; i < 32; i++) {
     gpr[i] = top->rootp->top__DOT__u_core__DOT__u_regfile__DOT__rf[i];
   }
-}
-
-// Debug: read-before/after helper (not used elsewhere)
-extern "C" void npc_sim_dbg_rf2(void) {
-  if (top == nullptr) return;
-  std::fprintf(stderr, "SIMBRIDGE_READ: rf[2]=0x%08x\n", top->rootp->top__DOT__u_core__DOT__u_regfile__DOT__rf[2]);
 }
 
 extern "C" bool npc_sim_is_halted(void) 

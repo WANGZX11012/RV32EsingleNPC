@@ -29,9 +29,11 @@ static size_t pmem_size = 0;
 static bool ref_halted = false;
 
 static const uint32_t default_img[] = {
-  0x000010b7, 0x02008093, 0x00500113, 0x002081b3,
-  0x00302023, 0x00002203, 0x00200223, 0x00404283,
-  0x024003e7, 0x00100073, 0x00c00067,
+  0x00000297,  // auipc t0,0
+  0x00028823,  // sb  zero,16(t0)     //把0x8000_0010高位字节写为0了 小端序
+  0x0102c503,  // lbu a0,16(t0)       //读到字节为0 写入a0寄存器
+  0x00100073,  // ebreak (used as nemu_trap)
+  0xdeadbeef,  // some data
 };
 
 #define R(i) cpu.gpr[i]

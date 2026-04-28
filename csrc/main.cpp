@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     if (!difftest_step(npc_sim_get_pc(), dut_gpr)) 
     {
       printf("ABORT after difftest mismatch\n");
-      break;
+      return 1;
     }
 
     // 3) 在 ebreak / abort 后及时停止仿真
@@ -56,15 +56,16 @@ int main(int argc, char** argv) {
       int code = npc_sim_halt_code();
       if (code == 0) {
         printf("HIT GOOD TRAP\n");
+        return 0;
       } else {
         printf("HIT BAD TRAP(code=%d)\n", code);
+        return 1;
       }
-      break;
     }
 
     if (npc_sim_is_aborted()) {
       printf("ABORT after invalid instruction\n");
-      break;
+      return 1;
     }
 
   }

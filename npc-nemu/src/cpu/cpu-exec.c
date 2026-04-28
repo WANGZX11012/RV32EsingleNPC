@@ -68,7 +68,7 @@ void npc_exec_once(void)
        this_pc, this_inst, npc_cpu.pc);
   }
 
-  if (npc_sim_is_halted()) 
+  if (npc_sim_is_halted()) //程序运行完成 或者abort时打印
   {
     int halt_ret = npc_sim_halt_code();
     npc_set_state(NPC_END, this_pc, halt_ret);

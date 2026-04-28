@@ -108,11 +108,12 @@ class alignas(VL_CACHE_LINE_BYTES) Vtop___024root final : public VerilatedModule
         IData/*31:0*/ __Vfunc_pmem_read_u32__7__Vfuncout;
         IData/*31:0*/ __VactIterCount;
         VlUnpacked<IData/*31:0*/, 32> top__DOT__u_core__DOT__u_regfile__DOT__rf;
+        VlUnpacked<IData/*31:0*/, 32> top__DOT__u_core__DOT__u_regfile__DOT__rf_read;
         VlUnpacked<QData/*63:0*/, 1> __VstlTriggered;
         VlUnpacked<QData/*63:0*/, 1> __VicoTriggered;
         VlUnpacked<QData/*63:0*/, 1> __VactTriggered;
         VlUnpacked<QData/*63:0*/, 1> __VnbaTriggered;
-        VlUnpacked<CData/*0:0*/, 3> __Vm_traceActivity;
+        VlUnpacked<CData/*0:0*/, 5> __Vm_traceActivity;
     };
 
     // INTERNAL VARIABLES
