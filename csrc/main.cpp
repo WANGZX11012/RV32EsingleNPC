@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
   npc_sim_init();
 
-  difftest_init(npc_sim_get_pc(), argc >= 2 ? argv[1] : nullptr);
+  difftest_init(npc_sim_get_pc());
 
   // 暂时用固定步数（后续可换成 ebreak 退出）
   for (int i = 0; i < 10000000; i++) 

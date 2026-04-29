@@ -19,6 +19,9 @@ uint32_t pc_read(uint32_t addr);
 // Copy current pmem contents out for difftest REF initialization
 void pmem_copy_out(void *dst, size_t bytes);
 
+// Return the number of initialized words in pmem (used to determine memcpy size)
+size_t pmem_get_word_count(void);
+
 // DPI-C exposed ebreak handler (implemented in C++)
 void npc_ebreak(int code);
 // DPI-C exposed invalid inst handler

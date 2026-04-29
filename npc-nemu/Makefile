@@ -42,6 +42,11 @@ LDFLAGS  := -lreadline -ldl
 -include $(NPC_NEMU_HOME)/include/config/auto.conf
 -include $(NPC_NEMU_HOME)/include/config/auto.conf.cmd
 
+## ITRACE_COND：从 Kconfig 字符串转成 C 编译选项
+remove_quote = $(patsubst "%",%,$(patsubst "%",%,$1))
+CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
+CFLAGS += $(CFLAGS_TRACE)
+
 ## 统一头文件搜索路径（像给编译器一张“地图”）：
 ## 1) npc-nemu 自己的 include
 ## 2) 子模块目录 include/cpu、include/memory、include/readline
@@ -56,7 +61,8 @@ INCLUDES := \
   -I$(NPC_ROOT)/csrc \
   -I$(OBJ_DIR) \
   -I$(VERILATOR_ROOT)/include \
-  -I$(VERILATOR_ROOT)/include/vltstd
+  -I$(VERILATOR_ROOT)/include/vltstd \
+  -I$(NEMU_HOME)/tools/capstone/repo/include
 
 ## menuconfig 配套规则
 include $(NPC_NEMU_HOME)/scripts/config.mk
@@ -75,6 +81,8 @@ NPC_NEMU_C_SRCS := \
   $(NPC_NEMU_ROOT)/src/monitor/monitor.c \
   $(NPC_NEMU_ROOT)/src/monitor/sdb/sdb.c \
   $(NPC_NEMU_ROOT)/src/utils/log.c \
+  $(NPC_NEMU_ROOT)/src/utils/itbuf.c \
+  $(NPC_NEMU_ROOT)/src/utils/disasm.c \
   $(NPC_NEMU_ROOT)/src/utils/state.c \
   $(NPC_NEMU_ROOT)/src/utils/timer.c
 
@@ -93,6 +101,8 @@ NPC_NEMU_C_OBJS := \
   $(BUILD_DIR)/monitor.o \
   $(BUILD_DIR)/sdb.o \
   $(BUILD_DIR)/log.o \
+  $(BUILD_DIR)/itbuf.o \
+  $(BUILD_DIR)/disasm.o \
   $(BUILD_DIR)/state.o \
   $(BUILD_DIR)/timer.o
 
@@ -164,6 +174,12 @@ $(BUILD_DIR)/sdb.o: $(NPC_NEMU_ROOT)/src/monitor/sdb/sdb.c | $(BUILD_DIR)
 $(BUILD_DIR)/log.o: $(NPC_NEMU_ROOT)/src/utils/log.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
+$(BUILD_DIR)/itbuf.o: $(NPC_NEMU_ROOT)/src/utils/itbuf.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/disasm.o: $(NPC_NEMU_ROOT)/src/utils/disasm.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
 $(BUILD_DIR)/state.o: $(NPC_NEMU_ROOT)/src/utils/state.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
@@ -189,8 +205,20 @@ $(BIN): $(OBJ_DIR)/Vtop__ALL.a $(NPC_NEMU_C_OBJS) $(NPC_CPP_OBJS)
 		$(LDFLAGS)
 
 ## 运行目标：先确保编译好，再执行
+NEMU_SO := $(abspath $(NEMU_HOME)/build/riscv32-nemu-interpreter-so)
 run: $(BIN)
-	./$(BIN)
+ifeq ($(CONFIG_DIFFTEST),y)
+	@if [ ! -f "$(NEMU_SO)" ]; then \
+		echo "Error: NEMU .so not found at $(NEMU_SO)"; \
+		echo "Build NEMU as shared object first: cd $(NEMU_HOME) && make menuconfig (Shared object) && make"; \
+		exit 1; \
+	fi
+	LD_LIBRARY_PATH=$(NEMU_HOME)/tools/capstone/repo:$$LD_LIBRARY_PATH \
+	./$(BIN) -d $(NEMU_SO) $(IMG)
+else
+	LD_LIBRARY_PATH=$(NEMU_HOME)/tools/capstone/repo:$$LD_LIBRARY_PATH \
+	./$(BIN) $(IMG)
+endif
 
 ## 清理目标：仅清理 npc-nemu 的 build 目录
 clean:

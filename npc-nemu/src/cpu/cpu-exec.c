@@ -1,15 +1,20 @@
 #include <cpu/npc_cpu.h>
+#include <cpu/decode.h>
 #include <cpu/difftest.h>
+#include "itbuf.h"
 #include "../../../csrc/sim_bridge.h"
+
+/* pc_read: read instruction word from pmem at given address */
+extern uint32_t pc_read(uint32_t addr);
 #include <stdio.h>
 #include <npc_debug.h>
+#include <string.h>
 
 #define MAX_INST_TO_PRINT 10
 
 NPC_CPU_state npc_cpu = {};
-uint64_t g_nr_guest_inst = 0;     // 已执行的客户指令计数
-static uint64_t g_timer = 0;      // unit: us 耗时
-static bool g_print_step = false; // 是否打印每条指令的trace
+uint64_t g_nr_guest_inst = 0;
+static bool g_print_step = false;
 
 void npc_set_state(int state, vaddr_t pc, int halt_ret) 
 {
@@ -20,13 +25,13 @@ void npc_set_state(int state, vaddr_t pc, int halt_ret)
 
 static void npc_sync_cpu_state(void) 
 {
-  npc_cpu.pc = npc_sim_get_pc();//同步到nemu侧的cpu状态
+  npc_cpu.pc = npc_sim_get_pc();
   npc_sim_get_gprs(npc_cpu.gpr);
 }
 
 void npc_exec_once(void) 
 {
-  if(npc_sim_is_aborted())//首先检查abort
+  if(npc_sim_is_aborted())
   {
     npc_set_state(NPC_ABORT, npc_cpu.pc, -1);
   }
@@ -36,14 +41,35 @@ void npc_exec_once(void)
     return;
   }
 
-  
-
   npc_state.state = NPC_RUNNING;
 
   uint32_t this_pc = npc_sim_get_pc();
   uint32_t this_inst = pc_read(this_pc);
-  npc_sim_step_once();   //时钟脉冲一次
-  npc_sync_cpu_state();  //更新nemu侧
+
+#ifdef CONFIG_ITRACE
+  /* Build logbuf: "0x80000000: 13 05 10 00" */
+  Decode s;
+  s.pc = this_pc;
+  char *p = s.logbuf;
+  p += snprintf(p, sizeof(s.logbuf), FMT_WORD ":", s.pc);
+  int ilen = 4;
+  uint8_t *inst = (uint8_t *)&this_inst;
+  for (int i = ilen - 1; i >= 0; i --) {
+    p += snprintf(p, 4, " %02x", inst[i]);
+  }
+  memset(p, ' ', 1);
+  p += 1;
+  /* Capstone disassembly */
+  void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+  disassemble(p, s.logbuf + sizeof(s.logbuf) - p, (uint64_t)this_pc, (uint8_t *)&this_inst, 4);
+
+#ifdef CONFIG_ITRACE_COND
+  if (ITRACE_COND) { printf("%s\n", s.logbuf); log_write("%s\n", s.logbuf); }
+#endif
+#endif
+
+  npc_sim_step_once();
+  npc_sync_cpu_state();
   g_nr_guest_inst++;
 
 #ifdef CONFIG_DIFFTEST
@@ -60,7 +86,12 @@ void npc_exec_once(void)
     return;
   }
 
-     npc_Log(ANSI_FMT("PC:0x%08x inst:0x%08x", ANSI_FG_GREEN), this_pc, this_inst);
+#ifdef CONFIG_ITRACE
+  itbuf_p(this_pc, s.logbuf);
+  if (g_print_step) puts(s.logbuf);
+#endif
+
+  printf(ANSI_FMT("PC:0x%08x inst:0x%08x\n", ANSI_FG_GREEN), this_pc, this_inst);
 
   if (g_print_step) 
   {
@@ -68,11 +99,11 @@ void npc_exec_once(void)
        this_pc, this_inst, npc_cpu.pc);
   }
 
-  if (npc_sim_is_halted()) //程序运行完成 或者abort时打印
+  if (npc_sim_is_halted())
   {
     int halt_ret = npc_sim_halt_code();
     npc_set_state(NPC_END, this_pc, halt_ret);
-    printf("npc: program ended at pc = 0x%08x, code = %d\n", this_pc, halt_ret);
+    printf("npc: program ended at pc = " FMT_WORD ", code = %d\n", this_pc, halt_ret);
     return;
   }
 

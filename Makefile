@@ -22,7 +22,7 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
 $(REF_SO): FORCE | $(OBJ_DIR)
-	$(CC) -shared -fPIC -O2 -g -Wall -Wextra -I$(abspath ./npc-nemu/include) -o $@ ./npc-nemu/difftest/ref.c
+	ln -sf $(abspath ../nemu/build/riscv32-nemu-interpreter-so) $@
 
 build-verilog:
 	$(VERILATOR) $(VERILATOR_FLAGS) $(VSRCS) $(CSRCS)

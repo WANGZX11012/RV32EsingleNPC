@@ -29,7 +29,7 @@ function [31:0] alu_func;
     input [31:0]    b;
     begin
         case(op)
-            `ALU_ADD:   alu_func = a + b;
+            `ALU_ADD:   alu_func = a + b;                 // 正确
             // `ALU_ADD:   alu_func = a + b + (alu_src2_imm ? 32'd1 : 32'd0); // temporary bug injection
             `ALU_SUB:   alu_func = a - b;
             `ALU_AND:   alu_func = a & b;

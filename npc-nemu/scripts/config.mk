@@ -33,11 +33,14 @@ menuconfig: $(MCONF) $(CONF) $(FIXDEP)
 savedefconfig: $(CONF)
 	$(Q)$< $(silent) --$@=configs/defconfig $(Kconfig)
 
+syncconfig: $(CONF)
+	$(Q)$< $(silent) --syncconfig $(Kconfig)
+
 %defconfig: $(CONF) $(FIXDEP)
 	$(Q)$< $(silent) --defconfig=configs/$@ $(Kconfig)
 	$(Q)$< $(silent) --syncconfig $(Kconfig)
 
-.PHONY: menuconfig savedefconfig defconfig
+.PHONY: menuconfig savedefconfig syncconfig defconfig
 
 help:
 	@echo  '  menuconfig      - Update current config utilising a menu based program'

@@ -119,12 +119,12 @@ void npc_init_monitor(int argc, char *argv[])
 //   }
 
   /* Initialize differential testing. */
-  IFDEF(CONFIG_DIFFTEST, init_difftest(diff_so_file, img_file, 0, difftest_port));
+  IFDEF(CONFIG_DIFFTEST, init_difftest(diff_so_file, img_file, 0, difftest_port));//这时候打印DIFF TEST ON
 
   /* Initialize the simple debugger. */
   npc_init_sdb();
 
-//   IFDEF(CONFIG_ITRACE, init_disasm());
+  IFDEF(CONFIG_ITRACE, init_disasm());
 
   /* Display welcome message. */
   welcome();

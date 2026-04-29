@@ -1,18 +1,10 @@
-
-
 #include <npc_isa.h>
 #include <cpu/npc_cpu.h>
 #include <readline/npc_readline.h>
 #include <readline/npc_history.h>
 #include "sdb.h"
-#include <sim_bridge.h>   // 用桥接接口拿 pc/inst
-
-// #include "watchpoint.h"
-// #include <memory/vaddr.h>//adding .h
-
-
-// extern bool div_zero_flag ;//除0标志
-
+#include <sim_bridge.h>
+#include "itbuf.h"
 
 static int is_batch_mode = false;
 
@@ -64,6 +56,7 @@ static int cmd_q(char *args)
 //新增命令注册
 static int cmd_help(char *args);// 声明 help 命令处理函数
 static int cmd_si(char *args);//单步执行
+static int cmd_d(char *args);//显示指令历史
 // static int cmd_info(char *args);//寄存器或监视点信息
 // static int cmd_x(char *args);//查看内存地址
 // static int cmd_p(char *agrs);//表达式求值
@@ -85,6 +78,7 @@ static struct
   { "q", "Exit NPC-NEMU", cmd_q },
   //si[N]
   { "si","Let program step through N insts and then pause execution", cmd_si},
+  { "d","Display N most recent instructions in trace buffer", cmd_d},
 //  //usage si 10 就是单步执行10次
 //  { "info","Type r to print all regs ; w to print all watchpoints",cmd_info},
 //  //usage ： info r 就是打印所有寄存器 info w打印监视点还没实现
@@ -160,6 +154,22 @@ static int cmd_si(char *args)
     return -1;
   }
 
+  return 0;
+}
+
+static int cmd_d(char *args)
+{
+  char *arg = strtok(NULL, " ");
+  int n = 10;  /* default: show 10 instructions */
+  if (arg != NULL) {
+    char *endptr;
+    n = strtol(arg, &endptr, 10);
+    if (*endptr != '\0' || n <= 0) {
+      printf(ANSI_FMT("Usage: d [N]  — N must be a positive number", ANSI_BG_RED) "\n");
+      return 0;
+    }
+  }
+  itbuf_d(n);
   return 0;
 }
 

@@ -178,6 +178,11 @@ extern "C" void pmem_copy_out(void *dst, size_t bytes)
   std::memcpy(dst, pmem_words, words * sizeof(uint32_t));
 }
 
+extern "C" size_t pmem_get_word_count(void)
+{
+  return pmem_words_size;
+}
+
 extern "C" void npc_ebreak(int code) //连接sim bridge
 {
   printf("DPI-C: ebreak, a0 = %d\n", code);//code 就是a0 中的值

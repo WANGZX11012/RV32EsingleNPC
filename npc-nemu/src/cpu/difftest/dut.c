@@ -84,7 +84,7 @@ void init_difftest(char *ref_so_file, char *img_file, long img_size, int port) {
   void (*ref_difftest_load_image)(const char *) = (void (*)(const char *))dlsym(handle, "difftest_load_image");
   assert(ref_difftest_load_image);
 
-  Log("Differential testing: %s", ANSI_FMT("ON", ANSI_FG_GREEN));
+  Log("Differential testing: %s", ANSI_FMT("ON", ANSI_FG_GREEN));    //打印
   Log("Reference design: %s", ref_so_file);
 
   ref_difftest_init(port);
@@ -109,10 +109,5 @@ bool difftest_step(vaddr_t pc, vaddr_t npc, vaddr_t inst) {
 }
 
 #else
-void init_difftest(char *ref_so_file, char *img_file, long img_size, int port) {
-  (void)ref_so_file;
-  (void)img_file;
-  (void)img_size;
-  (void)port;
-}
+/* init_difftest stub is provided by difftest.h as static inline */
 #endif
